@@ -1,72 +1,64 @@
-let ellapsedTotal  = 0;
-let ellapsedMotion = 0;
-let hasMotion = false;
-let humidity = 0;
-let motionDelay = 3 * 60;
-let motionDelayHardware = 11;
-let humidityThreshold = 80;
+let maximumHumidity    = 75;
+let maximumTemperature = 24;
 
-// Done!
-function switchTo(value) {
-  Shelly.call("switch.set", {'id': 0, 'on': value});
-}
+let humidity;
+let temperature;
 
-// Done!
-function handleMotionChange(state) {
-  hasMotion = state;
+let hasHumidityReading    = false;
+let hasTemperatureReading = false;
 
-  if (state === true) {
-    switchTo(true);
-  } else {
-    ellapsedMotion = ellapsedTotal;
-  }
-}
+let autoOffDelay = 5 * 60;
 
-// Done!
-function handleHumidityChange(value) {
-  humidity = value;
-
-  if (isHumid()) {
-    switchTo(true);
-  }
-}
-
-// Done!
-function hasMotionEllapsed() {
-  return (ellapsedTotal - ellapsedMotion) > (motionDelay - motionDelayHardware)
-}
-
-// Done!
-function isHumid() {
-  return humidity >= humidityThreshold;
-}
-
-// Done!
-function resetEllapsed() {
-  ellapsedTotal = 0;
-  ellapsedMotion = 0;
-}
-
-// Todo: Done!
-Timer.set(1000, true, function() {
-  ellapsedTotal++;
-  
-  if (hasMotion === false && hasMotionEllapsed()) {
-    resetEllapsed();
-
-    if (isHumid() === false) {
-      switchTo(false);
+Shelly.addStatusHandler(function(e) {
+  if (e.component === "input:100") {
+    if (e.delta.state === true) {
+      switchOn();
+    }
+  } else if (e.component === "humidity:100") {
+    handleHumidity(e.delta.rh);
+  } else if (e.component === "temperature:100") {
+    handleTemperature(e.delta.tC);
+  } else if (e.component === "number:200") {
+    maximumHumidity = e.delta.value;
+    
+    if (hasHumidityReading === false) {
+      Shelly.call("Humidity.GetStatus", {'id': 100}, function(result) {
+        handleHumidity(result.rh);
+      });
+    } else {
+      handleHumidity(humidity);
+    }
+  } else if (e.component === "number:201") {
+    maximumTemperature = e.delta.value;
+    
+    if (hasTemperatureReading === false) {
+      Shelly.call("Temperature.GetStatus", {'id': 100}, function(result) {
+        handleTemperature(result.tC);
+      });
+    } else {
+      handleTemperature(temperature);
     }
   }
 });
 
-// Done!
-Shelly.addStatusHandler(function(e) {
-  if (e.component === "input:100") {
-    handleMotionChange(e.delta.state);
-  } else if (e.component === "temperature:100") {
-    //print("Temperature is: " + e.delta.tC + " ºC");
-  } else if (e.component === "humidity:100") {
-    handleHumidityChange(e.delta.rh);
+function handleTemperature(value) {
+  temperature = value;
+  hasTemperatureReading = true;
+  
+  if (value >= maximumTemperature) {
+    switchOn();
   }
-});
+}
+
+function handleHumidity(value) {
+  humidity = value;
+  hasHumidityReading = true;
+    
+  if (value >= maximumHumidity) {
+    switchOn();
+  }
+}
+
+function switchOn() {
+  Shelly.call("Switch.Set", {'id': 0, 'on': true, 'toggle_after': autoOffDelay});
+}
