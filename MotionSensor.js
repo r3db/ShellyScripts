@@ -11,35 +11,25 @@ let autoOffDelay = 5 * 60;
 
 Shelly.addStatusHandler(function(e) {
   if (e.component === "input:100") {
-    if (e.delta.state === true) {
-      switchOn();
-    }
+    handleMotion(e.delta.state);
   } else if (e.component === "humidity:100") {
     handleHumidity(e.delta.rh);
   } else if (e.component === "temperature:100") {
     handleTemperature(e.delta.tC);
-  } else if (e.component === "number:200") {
-    maximumHumidity = e.delta.value;
-    
-    if (hasHumidityReading === false) {
-      Shelly.call("Humidity.GetStatus", {'id': 100}, function(result) {
-        handleHumidity(result.rh);
-      });
-    } else {
-      handleHumidity(humidity);
-    }
   } else if (e.component === "number:201") {
-    maximumTemperature = e.delta.value;
-    
-    if (hasTemperatureReading === false) {
-      Shelly.call("Temperature.GetStatus", {'id': 100}, function(result) {
-        handleTemperature(result.tC);
-      });
-    } else {
-      handleTemperature(temperature);
-    }
+    handleMaximumTemperature(e.delta.tC);
+  } else if (e.component === "number:200") {
+    handleMaximumHumidity(e.delta.rh);
   }
 });
+
+function handleMotion(value) {
+  Shelly.call("Number.Set", {'id': 202, 'value': value === true ? 1 : 0});
+    
+  if (value === true) {
+    switchOn();
+  }
+}
 
 function handleTemperature(value) {
   temperature = value;
@@ -56,6 +46,30 @@ function handleHumidity(value) {
     
   if (value >= maximumHumidity) {
     switchOn();
+  }
+}
+
+function handleMaximumTemperature(value) {
+  maximumTemperature = value;
+    
+  if (hasTemperatureReading === false) {
+    Shelly.call("Temperature.GetStatus", {'id': 100}, function(result) {
+      handleTemperature(result.tC);
+    });
+  } else {
+    handleTemperature(temperature);
+  }
+}
+
+function handleMaximumHumidity(value) {
+  maximumHumidity = value;
+    
+  if (hasHumidityReading === false) {
+    Shelly.call("Humidity.GetStatus", {'id': 100}, function(result) {
+      handleHumidity(result.rh);
+    });
+  } else {
+    handleHumidity(humidity);
   }
 }
 
