@@ -1,7 +1,6 @@
 // State
 let humidity    = null;
 let temperature = null;
-let activity    = 0;
 
 let previousSensorTime = null;
 let currentSensorTime  = null;
@@ -36,29 +35,25 @@ function init() {
     updateCurrentHour();
     updateSensorBasedOnCurrentHumidity();
     updateSensorBasedOnCurrentTemperature();
-
-    Shelly.call("Number.Set", {'id': 203, 'value': activity});
-    activity = 0;
   });
 }
 
 function handleMotionChange(value) {
   if (value === false) {
-  	Shelly.call("Number.Set", {'id': 202, 'value': SensorFalse});
-  	return;
+    Shelly.call("Number.Set", {'id': 202, 'value': SensorFalse});
+    return;
   }
 
   currentSensorTime = Date.now();
 
   if (previousSensorTime === null) {
-  	previousSensorTime = Date.now();
-  	return;
+    previousSensorTime = Date.now();
+    return;
   }
 
   let diff = (currentSensorTime - previousSensorTime) / 1000;
-    	
+      
   if (diff < 30) {
-    ++activity;
     Shelly.call("Number.Set", {'id': 202, 'value': SensorTrue});
     switchOn();
   }
