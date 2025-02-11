@@ -2,6 +2,8 @@
 let humidity     = null;
 let temperature  = null;
 let sensorHandle = Virtual.getHandle("number:202");
+let eCO2Handle   = Virtual.getHandle("number:203");
+let tVOCHandle   = Virtual.getHandle("number:204");
 
 let previousSensorTime = null;
 let currentSensorTime  = null;
@@ -29,6 +31,14 @@ function init() {
       updateCurrentHour();
       updateSensorBasedOnCurrentHumidity();
       updateSensorBasedOnCurrentTemperature();
+    } catch (error) {
+      console.error(error);
+    }
+  });
+
+  Timer.set(2 * 1000, true, function() {
+    try {
+      updateAirQualityIndex();
     } catch (error) {
       console.error(error);
     }
@@ -121,6 +131,18 @@ function updateCurrentHour() {
     let time = result.time.split(":");
     currentHour   = time[0];
     currentMinute = time[1];
+  });
+}
+
+function updateAirQualityIndex() {
+  Shelly.call("HTTP.GET", {"url": "http://192.168.80.52/aqi", "Content-Type":"application/json"}, function(response) {
+    if ((response && response.code && response.code === 200) === false) {
+      return
+    }
+
+    var json = JSON.parse(response.body)
+    eCO2Handle.setValue(json.eCO2);
+    tVOCHandle.setValue(json.tVOC);
   });
 }
 
