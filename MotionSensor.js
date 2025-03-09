@@ -1,9 +1,11 @@
 // State
-let humidity     = null;
-let temperature  = null;
-let sensorHandle = Virtual.getHandle("number:202");
-let eCO2Handle   = Virtual.getHandle("number:203");
-let tVOCHandle   = Virtual.getHandle("number:204");
+let humidity           = null;
+let temperature        = null;
+let sensorHandle       = Virtual.getHandle("number:202");
+let eCO2Handle         = Virtual.getHandle("number:203");
+let tVOCHandle         = Virtual.getHandle("number:204");
+let ipAddressHandle    = Virtual.getHandle("text:200");
+let errorMessageHandle = Virtual.getHandle("text:201");
 
 let previousSensorTime = null;
 let currentSensorTime  = null;
@@ -18,6 +20,7 @@ let silentHourEnd   = 7;
 let currentHour     = null;
 let currentMinute   = null;
 let autoOffDelay    = 5 * 60;
+let aqiUrl          = "http://" + ipAddressHandle.getValue() + "/aqi";
 
 // Constants
 const SensorTrue  = 1;
@@ -32,15 +35,17 @@ function init() {
       updateSensorBasedOnCurrentHumidity();
       updateSensorBasedOnCurrentTemperature();
     } catch (error) {
-      console.error(error);
+      console.log(error);
+      errorMessageHandle.setValue(error.message);
     }
   });
 
-  Timer.set(2 * 1000, true, function() {
+  Timer.set(5 * 1000, true, function() {
     try {
       updateAirQualityIndex();
     } catch (error) {
-      console.error(error);
+      console.log(error);
+      errorMessageHandle.setValue(error.message);
     }
   });
 }
@@ -135,8 +140,8 @@ function updateCurrentHour() {
 }
 
 function updateAirQualityIndex() {
-  Shelly.call("HTTP.GET", {"url": "http://192.168.80.52/aqi", "Content-Type":"application/json"}, function(response) {
-    if ((response && response.code && response.code === 200) === false) {
+  Shelly.call("HTTP.GET", {"url": aqiUrl, "Content-Type":"application/json"}, function(response) {
+    if (response === undefined || response.code === undefined || response.code !== 200) {
       return
     }
 
@@ -160,7 +165,8 @@ Shelly.addStatusHandler(function(e) {
       updateSensorBasedOnMaximumTemperatureChange(e.delta.value);
     }
   } catch (error) {
-    console.error(error);
+    console.log(error);
+    errorMessageHandle.setValue(error.message);
   }
 });
 
