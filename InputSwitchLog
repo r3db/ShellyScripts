@@ -1,0 +1,56 @@
+var LOG_KEY = "input-switch-log";
+var MAX_EVENTS = 10;
+var CHANNEL = 1
+
+Shelly.addStatusHandler(function(notification) {
+  if (notification.name === "switch" && notification.id === CHANNEL && typeof notification.delta.output !== "undefined") {
+    var newState = notification.delta.output ? "on" : "off";
+    
+    Shelly.call("Sys.GetStatus", {}, function (status, error_code, error_msg) {
+      var dateTimeStr = "Unknown Time";
+      
+      if (status && status.unixtime) {
+        // Create a proper JS Date object using the unix timestamp (multiply by 1000 for milliseconds)
+        // We add the utc_offset to force it to show your configured local time instead of UTC
+        var localTimeMs = (status.unixtime + (status.utc_offset || 0)) * 1000;
+        var d = new Date(localTimeMs);
+        
+        // Format the date parts manually to avoid missing methods in mJS
+        var yyyy = JSON.stringify(d.getFullYear());
+        var m = d.getMonth() + 1;
+        var mm = m < 10 ? "0" + JSON.stringify(m) : JSON.stringify(m);
+        var day = d.getDate();
+        var dd = day < 10 ? "0" + JSON.stringify(day) : JSON.stringify(day);
+        
+        dateTimeStr = dd + "-" + mm + " " + status.time;
+      } else if (status && status.uptime) {
+        dateTimeStr = "Uptime: " + JSON.stringify(status.uptime) + "s";
+      }
+
+      var newEvent = dateTimeStr + " - " + newState;
+
+      Shelly.call("KVS.Get", { key: LOG_KEY }, function (result, err_code, err_msg) {
+        var logList = [];
+        
+        if (result && result.value) {
+          try {
+            logList = JSON.parse(result.value);
+          } catch(e) {
+            logList = [];
+          }
+        }
+
+        logList.push(newEvent);
+
+        if (logList.length > MAX_EVENTS) {
+          logList.splice(0, 1);
+        }
+
+        Shelly.call("KVS.Set", {
+          key: LOG_KEY,
+          value: JSON.stringify(logList)
+        });
+      });
+    });
+  }
+});
